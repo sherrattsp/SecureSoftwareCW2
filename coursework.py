@@ -8,28 +8,49 @@ class GenerateAccountNumber:
 #in the real world, the generator would be more sophisticated
     _instance = None
     def __new__(cls) -> str:
+        if cls._instance is None:
+            cls._instance = super().__new__()
+        return cls._instance
 class AccountNumber:
     def __init__(self):
+        self._account_number = GenerateAccountNumber()
+        if not self._is_valid(self._account_number):
+            raise Exception("Invalid account number")
 #generates account number. Raises exception if not valid
     def _is_valid(self, account_number:str) -> bool:
-#validates that account number has 11-14 digits
+        #validates that account number has 11-14 digits
+        return account_number is not None \
+            and len(account_number) > 10 \
+            and len (account_number) < 15 \
+            and account_number.isdigit()
+
     def id(self) -> str: #object return value
-#return account number (private attribute)
+        #return account number (private attribute)
+        return self._account_number
+
+
 class Account:pass
 class Currency:
     def __init__(self, amount:int):
-#takes in amount and validates that it is an appropriate value
+        #takes in amount and validates that it is an appropriate value
+        if not self._is_valid_amount(amount):
+            raise Exception("Incorrect value")
     def _is_valid_amount(self, amount:int) -> bool:
-#validates that amount is an int and positive
+        #validates that amount is an int and positive
+        return isinstance(amount, int) and amount >= 0
     def value(self):
-#returns value (private attribute)
-'''We have here a chain of trust:
--we trust that Currency and AccountNumber are able to sanitise untrusted data
--classes that only evoke the above do not need to sanitise anything passed to them, they only need to verify class type
--BankTransaction class implements the Command pattern'''
+        #returns value (private attribute)
+        '''We have here a chain of trust:
+        -we trust that Currency and AccountNumber are able to sanitise untrusted data
+        -classes that only evoke the above do not need to sanitise anything passed to them, they only need to verify class type
+        -BankTransaction class implements the Command pattern'''
+        return self.value()
+
+
+
 class Account:
-'''Account object performs checks on its own account number and balance transfers.
-BTs are logged, but not committed until commit method is called'''
+    '''Account object performs checks on its own account number and balance transfers.
+    BTs are logged, but not committed until commit method is called'''
     def __init__(self):
         self._account_number = AccountNumber().id()
         self._balance = 0
