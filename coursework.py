@@ -162,13 +162,13 @@ class BankTransaction(Command):
         #commit transaction
         self._source_account._balance -= self._currency.value()
         self._source_commit = True
-        self._destination_account += self._currency.value()
+        self._destination_account._balance += self._currency.value()
         self._destination_commit = True
 
     def undo(self):
         self._source_account._balance += self._currency.value()
         self._source_commit = False
-        self._destination_account -= self._currency.value()
+        self._destination_account._balance -= self._currency.value()
         self._destination_commit = False
         self._clear_commit_log()
 
@@ -191,3 +191,5 @@ if __name__ == "__main__":
     except Exception as msg:
         print(msg)
         transfer1.undo()
+
+    print(f"Value of account one is {account1._balance}")
