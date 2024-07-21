@@ -16,7 +16,7 @@ class GenerateAccountNumber:
 
     def __new__(cls) -> str:
         if cls._instance is None:
-            cls._instance = ('0' * (14-len(str(number))) + str(number) for number in range(0, sys.maxsize))
+            cls._instance = ('0' * (14 - len(str(number))) + str(number) for number in range(0, sys.maxsize))
         return next(cls._instance)
 
 
@@ -27,7 +27,7 @@ class AccountNumber:
             raise Exception("Invalid account number")
 
     #generates account number. Raises exception if not valid
-    def _is_valid(self, account_number:str) -> bool:
+    def _is_valid(self, account_number: str) -> bool:
         #validates that account number has 11-14 digits
         return account_number is not None \
             and len(account_number) > 10 \
@@ -48,6 +48,7 @@ class Currency:
         #takes in amount and validates that it is an appropriate value
         if not self._is_valid_amount(amount):
             raise Exception("Incorrect value")
+        self._value = amount
 
     def _is_valid_amount(self, amount: int) -> bool:
         #validates that amount is an int and positive
@@ -55,11 +56,13 @@ class Currency:
 
     def value(self):
         #returns value (private attribute)
-        '''We have here a chain of trust:
+        return self._value
+
+
+'''We have here a chain of trust:
         -we trust that Currency and AccountNumber are able to sanitise untrusted data
         -classes that only evoke the above do not need to sanitise anything passed to them, they only need to verify class type
         -BankTransaction class implements the Command pattern'''
-        return self.value()
 
 
 class Account:
@@ -129,13 +132,16 @@ class ReserveAccount(Account):
         return cls._instance
 
     def __init__(self):
-        super()
+        super().__init__()
+        self._account_number = AccountNumber().id()
+        self._balance = 0
+        self._log = []
 
     def add_balance(self, currency: Currency):
         #checks valid currency and adds to balance
         #commit log not used because this is a side channel to introduce starting capital
         if self._is_valid_currency(currency):
-            self._balance += currency
+            self._balance += currency.value()
 
 
 class BankTransaction(Command):
