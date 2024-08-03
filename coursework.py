@@ -106,6 +106,8 @@ class Account:
         #if all valid, log transfer out
         #class Account
         if self._is_valid_account(source) and self._is_valid_account(destination) and self._is_valid_currency(currency):
+            if self._willBeNegative(currency):
+                raise Exception("Insufficient funds")
             self._log.append(BankTransaction(source_account=source, destination_account=destination, currency=currency))
         else:
             raise Exception("Attempted to pass int rather than Currency object")
@@ -122,14 +124,20 @@ class Account:
 
     def uncommit(self):
         #uncommit attempts to roll back a commit (invoked if a problem occurs with a commit)
-        if (self._account_number == self._log[-1]._source_account.id()):
+        if self._account_number == self._log[-1]._source_account.id():
             self._balance += self._log[-1]._currency.value()
-        elif (self._account_number == self._log[-1]._destination_account.id()):
+        elif self._account_number == self._log[-1]._destination_account.id():
             self._balance -= self._log[-1]._currency.value()
 
     def clear_commit_log(self):
         #clears commit log when requested (after a successful commit – i.e. not rolled back)
         self._log.clear()
+
+    def _willBeNegative(self, currency:Currency) -> bool:
+        if (self._balance - currency.value() < 0):
+            return True
+        else:
+            return False
 
 
 class ReserveAccount(Account):
