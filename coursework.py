@@ -111,7 +111,8 @@ class Account:
             raise Exception("Attempted to pass int rather than Currency object")
 
     def commit(self):
-        BankTransaction.do(self._log[-1])
+        # BankTransaction.do(self._log[-1])
+        
 
     def uncommit(self):
         #uncommit attempts to roll back a commit (invoked if a problem occurs with a commit)
@@ -163,17 +164,26 @@ class BankTransaction(Command):
     #class BankTransaction
     def do(self):
         #commit transaction
-        self._source_account._balance -= self._currency.value()
+        # self._source_account._balance -= self._currency.value()
+        # self._source_commit = True
+        # self._destination_account._balance += self._currency.value()
+        # self._destination_commit = True
+        self._source_account.commit()
         self._source_commit = True
-        self._destination_account._balance += self._currency.value()
+        self._destination_account.commit()
         self._destination_commit = True
 
     def undo(self):
-        self._source_account._balance += self._currency.value()
-        self._source_commit = False
-        self._destination_account._balance -= self._currency.value()
+        # self._source_account._balance += self._currency.value()
+        # self._source_commit = False
+        # self._destination_account._balance -= self._currency.value()
+        # self._destination_commit = False
+        # self._clear_commit_log()
+
+        self._destination_account.uncommit()
         self._destination_commit = False
-        self._clear_commit_log()
+        self._source_account.uncommit()
+        self._source_commit = False
 
     def _clear_commit_log(self):
         #clear any commit logs
