@@ -106,14 +106,14 @@ class Account:
         #if all valid, log transfer out
         #class Account
         if self._is_valid_account(source) and self._is_valid_account(destination) and self._is_valid_currency(currency):
-            if self._willBeNegative(currency):
-                raise Exception("Insufficient funds")
             self._log.append(BankTransaction(source_account=source, destination_account=destination, currency=currency))
         else:
             raise Exception("Attempted to pass int rather than Currency object")
 
     def commit(self):
         # BankTransaction.do(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()) and (self._willBeNegative(self._log[-1]._currency)):
+            raise Exception("Insufficient funds")
         if (self._account_number == self._log[-1]._source_account.id()):
             self._balance -= self._log[-1]._currency.value()
         elif (self._account_number == self._log[-1]._destination_account.id()):
@@ -124,10 +124,12 @@ class Account:
 
     def uncommit(self):
         #uncommit attempts to roll back a commit (invoked if a problem occurs with a commit)
-        if self._account_number == self._log[-1]._source_account.id():
+        if (self._account_number == self._log[-1]._source_account.id()):
             self._balance += self._log[-1]._currency.value()
-        elif self._account_number == self._log[-1]._destination_account.id():
+        elif (self._account_number == self._log[-1]._destination_account.id()):
             self._balance -= self._log[-1]._currency.value()
+
+
 
     def clear_commit_log(self):
         #clears commit log when requested (after a successful commit – i.e. not rolled back)
@@ -244,8 +246,8 @@ if __name__ == '__main__':
     except Exception as msg:
         print(msg)
         transfer2.undo()
-    print(account1._balance)
-    print(account2._balance)
+    print("Expected for account1: 0, Actual:", account1._balance)
+    print("Expected for account2: 500, Actual:", account2._balance)
 
     #
     #
