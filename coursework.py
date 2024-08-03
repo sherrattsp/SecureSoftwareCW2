@@ -112,11 +112,20 @@ class Account:
 
     def commit(self):
         # BankTransaction.do(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()):
+            self._balance -= self._log[-1]._currency.value()
+        elif (self._account_number == self._log[-1]._destination_account.id()):
+            self._balance += self._log[-1]._currency.value()
+
+
         
 
     def uncommit(self):
         #uncommit attempts to roll back a commit (invoked if a problem occurs with a commit)
-        BankTransaction.undo(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()):
+            self._balance += self._log[-1]._currency.value()
+        elif (self._account_number == self._log[-1]._destination_account.id()):
+            self._balance -= self._log[-1]._currency.value()
 
     def clear_commit_log(self):
         #clears commit log when requested (after a successful commit – i.e. not rolled back)
@@ -168,10 +177,15 @@ class BankTransaction(Command):
         # self._source_commit = True
         # self._destination_account._balance += self._currency.value()
         # self._destination_commit = True
+
+        self._source_account.transfer_out(self._currency, self._source_account, self._destination_account)
+        self._destination_account.transfer_in(self._currency, self._source_account, self._destination_account)
         self._source_account.commit()
         self._source_commit = True
         self._destination_account.commit()
         self._destination_commit = True
+
+        self._clear_commit_log()
 
     def undo(self):
         # self._source_account._balance += self._currency.value()
@@ -187,17 +201,65 @@ class BankTransaction(Command):
 
     def _clear_commit_log(self):
         #clear any commit logs
-        self._source_account._log.clear()
-        self._destination_account._log.clear()
+        self._source_account.clear_commit_log()
+        self._destination_account.clear_commit_log()
         self._source_commit = False
         self._destination_commit = False
 
 
 if __name__ == '__main__':
+    main_bank_account = ReserveAccount()
+    account1 = Account()
+    account2 = Account()
+    main_bank_account.add_balance(Currency(1000000))
+    transfer1 = BankTransaction(main_bank_account, account1, Currency(500))
+
+    try:
+        transfer1.do()
+    except Exception as msg:
+        print(msg)
+        transfer1.undo()
+    print("Expected for account1: 500, Actual:", account1._balance)
+    print("Expected for account2: 0, Actual:", account2._balance)
+
+    transfer2 = BankTransaction(account1, account2, Currency(500))
+
+    try:
+        transfer2.do()
+    except Exception as msg:
+        print(msg)
+        transfer2.undo()
+    print("Expected for account1: 0, Actual:", account1._balance)
+    print("Expected for account2: 500, Actual:", account2._balance)
+    try:
+        transfer2.do()
+    except Exception as msg:
+        print(msg)
+        transfer2.undo()
+    print(account1._balance)
+    print(account2._balance)
+
+    #
+    #
     # main_bank_account = ReserveAccount()
     # account1 = Account()
     # account2 = Account()
-    # main_bank_account.add_balance(Currency(1000000))
+    # main_bank_account.add_balance(Currency(100000))
+    # transaction1 = Account()
+    # transaction1.transfer_out(Currency(500), main_bank_account, account1)
+    # transaction1.commit()
+    # print(f"Value of account one is {account1._balance}")
+    #
+    # transaction2 = Account()
+    # transaction2.transfer_in(Currency(250), account1, account2)
+    # transaction2.commit()
+    # print(f"The value of account two is {account2._balance}")
+    #
+    # badTransaction = Account()
+    # badTransaction.transfer_out(100, main_bank_account, account1)
+    # badTransaction.commit()
+    #
+    #
     # transfer1 = BankTransaction(main_bank_account, account1, Currency(500))
     # try:
     #     transfer1.do()
@@ -205,60 +267,14 @@ if __name__ == '__main__':
     #     print(msg)
     #     transfer1.undo()
     #
-    # transfer2 = BankTransaction(account1, account2, Currency(500))
-    # print(account1._balance)
-    # print(account2._balance)
+    # intTest = BankTransaction(account1, account2, 45)
     # try:
-    #     transfer2.do()
+    #     intTest.do()
     # except Exception as msg:
     #     print(msg)
-    #     transfer2.undo()
-    # print(account1._balance)
-    # print(account2._balance)
-    # try:
-    #     transfer2.do()
-    # except Exception as msg:
-    #     print(msg)
-    #     transfer2.undo()
-    # print(account1._balance)
-    # print(account2._balance)
-
-
-
-    main_bank_account = ReserveAccount()
-    account1 = Account()
-    account2 = Account()
-    main_bank_account.add_balance(Currency(100000))
-    transaction1 = Account()
-    transaction1.transfer_out(Currency(500), main_bank_account, account1)
-    transaction1.commit()
-    print(f"Value of account one is {account1._balance}")
-
-    transaction2 = Account()
-    transaction2.transfer_in(Currency(250), account1, account2)
-    transaction2.commit()
-    print(f"The value of account two is {account2._balance}")
-
-    badTransaction = Account()
-    badTransaction.transfer_out(100, main_bank_account, account1)
-    badTransaction.commit()
-
-
-    transfer1 = BankTransaction(main_bank_account, account1, Currency(500))
-    try:
-        transfer1.do()
-    except Exception as msg:
-        print(msg)
-        transfer1.undo()
-
-    intTest = BankTransaction(account1, account2, 45)
-    try:
-        intTest.do()
-    except Exception as msg:
-        print(msg)
-        intTest.undo()
-        print(f"Value of account one is {account1._balance}")
-        print(f"The value of account two is {account2._balance}")
-
-    print(f"Value of account one is {account1._balance}")
-    print(f"The value of account two is {account2._balance}")
+    #     intTest.undo()
+    #     print(f"Value of account one is {account1._balance}")
+    #     print(f"The value of account two is {account2._balance}")
+    #
+    # print(f"Value of account one is {account1._balance}")
+    # print(f"The value of account two is {account2._balance}")
