@@ -47,7 +47,7 @@ class Currency:
     def __init__(self, amount: int):
         #takes in amount and validates that it is an appropriate value
         if not self._is_valid_amount(amount):
-            raise Exception("Incorrect value")
+            raise Exception("Incorrect currency value")
         self._value = amount
 
     def _is_valid_amount(self, amount: int) -> bool:
@@ -303,6 +303,18 @@ if __name__ == '__main__':
         print(msg)
         transfer8.undo()
     print("Expected for account4: 100000, Actual:", account4._balance)
+
+
+
+    # negative transfer test
+    transfer9 = BankTransaction(account4, account3, Currency(-500))
+    try:
+        transfer9.do()
+    except Exception as msg:
+        print(msg)
+        transfer9.undo()
+    print("Expected for account4: 100000, Actual:", account4._balance)
+    print("Expected for account3: 1000, Actual:", account3._balance)
 
     #
     #
