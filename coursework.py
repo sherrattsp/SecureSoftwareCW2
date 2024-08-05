@@ -112,6 +112,8 @@ class Account:
 
     def commit(self):
         # BankTransaction.do(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()) and (self._willBeNegative(self._log[-1]._currency)):
+            raise Exception("Insufficient funds")
         if (self._account_number == self._log[-1]._source_account.id()):
             self._balance -= self._log[-1]._currency.value()
         elif (self._account_number == self._log[-1]._destination_account.id()):
@@ -127,9 +129,17 @@ class Account:
         elif (self._account_number == self._log[-1]._destination_account.id()):
             self._balance -= self._log[-1]._currency.value()
 
+
+
     def clear_commit_log(self):
         #clears commit log when requested (after a successful commit – i.e. not rolled back)
         self._log.clear()
+
+    def _willBeNegative(self, currency:Currency) -> bool:
+        if (self._balance - currency.value() < 0):
+            return True
+        else:
+            return False
 
 
 class ReserveAccount(Account):
@@ -188,16 +198,11 @@ class BankTransaction(Command):
         self._clear_commit_log()
 
     def undo(self):
-        # self._source_account._balance += self._currency.value()
-        # self._source_commit = False
-        # self._destination_account._balance -= self._currency.value()
-        # self._destination_commit = False
-        # self._clear_commit_log()
-
-        self._destination_account.uncommit()
-        self._destination_commit = False
-        self._source_account.uncommit()
-        self._source_commit = False
+        if self._source_commit:
+            self._source_account.uncommit()
+        if self._destination_commit:
+            self._destination_account.uncommit()
+        self._clear_commit_log()
 
     def _clear_commit_log(self):
         #clear any commit logs
@@ -236,8 +241,28 @@ if __name__ == '__main__':
     except Exception as msg:
         print(msg)
         transfer2.undo()
-    print(account1._balance)
-    print(account2._balance)
+    print("Expected for account1: 0, Actual:", account1._balance)
+    print("Expected for account2: 500, Actual:", account2._balance)
+
+    account3 = Account()
+    account4 = Account()
+    transfer3 = BankTransaction(main_bank_account, account3, Currency(500))
+    try:
+        transfer3.do()
+    except Exception as msg:
+        print(msg)
+        transfer3.undo()
+    print("Expected for account3: 500, Actual:", account3._balance)
+    print("Expected for account4: 0, Actual:", account4._balance)
+
+    transfer4 = BankTransaction(account4, account3, Currency(500))
+    try:
+        transfer4.do()
+    except Exception as msg:
+        print(msg)
+        transfer4.undo()
+    print("Expected for account3: 500, Actual:", account3._balance)
+    print("Expected for account4: 0, Actual:", account4._balance)
 
     #
     #
