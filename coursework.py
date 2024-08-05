@@ -47,7 +47,7 @@ class Currency:
     def __init__(self, amount: int):
         #takes in amount and validates that it is an appropriate value
         if not self._is_valid_amount(amount):
-            raise Exception("Incorrect value")
+            raise Exception("Incorrect currency value")
         self._value = amount
 
     def _is_valid_amount(self, amount: int) -> bool:
@@ -82,6 +82,8 @@ class Account:
         #returns True if valid account
         if isinstance(account, Account):
             return True
+        else:
+            raise Exception(f"Account provided: {account} is not of valid type")
 
     def _is_valid_currency(self, currency: Currency) -> bool:
         #returns True if valid currency
@@ -104,18 +106,42 @@ class Account:
         #if all valid, log transfer out
         #class Account
         if self._is_valid_account(source) and self._is_valid_account(destination) and self._is_valid_currency(currency):
+            if source.id() == destination.id():
+                raise Exception("Cannot transfer to self")
             self._log.append(BankTransaction(source_account=source, destination_account=destination, currency=currency))
+        else:
+            raise Exception("Attempted to pass int rather than Currency object")
 
     def commit(self):
-        BankTransaction.do(self._log[-1])
+        # BankTransaction.do(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()) and (self._willBeNegative(self._log[-1]._currency)):
+            raise Exception("Insufficient funds")
+        if (self._account_number == self._log[-1]._source_account.id()):
+            self._balance -= self._log[-1]._currency.value()
+        elif (self._account_number == self._log[-1]._destination_account.id()):
+            self._balance += self._log[-1]._currency.value()
+
+
+        
 
     def uncommit(self):
         #uncommit attempts to roll back a commit (invoked if a problem occurs with a commit)
-        BankTransaction.undo(self._log[-1])
+        if (self._account_number == self._log[-1]._source_account.id()):
+            self._balance += self._log[-1]._currency.value()
+        elif (self._account_number == self._log[-1]._destination_account.id()):
+            self._balance -= self._log[-1]._currency.value()
+
+
 
     def clear_commit_log(self):
         #clears commit log when requested (after a successful commit – i.e. not rolled back)
         self._log.clear()
+
+    def _willBeNegative(self, currency:Currency) -> bool:
+        if (self._balance - currency.value() < 0):
+            return True
+        else:
+            return False
 
 
 class ReserveAccount(Account):
@@ -149,8 +175,7 @@ class BankTransaction(Command):
     An atomic transaction is a balance transfer between two account that is undone
     ('rolled back') if a problem occurs. This rollback is implemented using the Command pattern'''
 
-    def __init__(self, source_account: Account, destination_account: Account,
-                 currency: Currency):  #no need to validate: validation performed at an account level
+    def __init__(self, source_account: Account, destination_account: Account, currency: Currency):  #no need to validate: validation performed at an account level
         self._source_account = source_account
         self._destination_account = destination_account
         self._currency = currency
@@ -160,36 +185,173 @@ class BankTransaction(Command):
     #class BankTransaction
     def do(self):
         #commit transaction
-        self._source_account._balance -= self._currency.value()
+        # self._source_account._balance -= self._currency.value()
+        # self._source_commit = True
+        # self._destination_account._balance += self._currency.value()
+        # self._destination_commit = True
+
+        self._source_account.transfer_out(self._currency, self._source_account, self._destination_account)
+        self._destination_account.transfer_in(self._currency, self._source_account, self._destination_account)
+        self._source_account.commit()
         self._source_commit = True
-        self._destination_account._balance += self._currency.value()
+        self._destination_account.commit()
         self._destination_commit = True
 
+        self._clear_commit_log()
+
     def undo(self):
-        self._source_account._balance += self._currency.value()
-        self._source_commit = False
-        self._destination_account._balance -= self._currency.value()
-        self._destination_commit = False
+        if self._source_commit:
+            self._source_account.uncommit()
+        if self._destination_commit:
+            self._destination_account.uncommit()
         self._clear_commit_log()
 
     def _clear_commit_log(self):
         #clear any commit logs
-        self._source_account._log.clear()
-        self._destination_account._log.clear()
+        self._source_account.clear_commit_log()
+        self._destination_account.clear_commit_log()
         self._source_commit = False
         self._destination_commit = False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    #negative balance test
     main_bank_account = ReserveAccount()
     account1 = Account()
     account2 = Account()
-    main_bank_account.add_balance(Currency(100000))
+    main_bank_account.add_balance(Currency(1000000))
     transfer1 = BankTransaction(main_bank_account, account1, Currency(500))
+
     try:
         transfer1.do()
     except Exception as msg:
         print(msg)
         transfer1.undo()
+    print("Expected for account1: 500, Actual:", account1._balance)
+    print("Expected for account2: 0, Actual:", account2._balance)
 
-    print(f"Value of account one is {account1._balance}")
+    transfer2 = BankTransaction(account1, account2, Currency(500))
+
+    try:
+        transfer2.do()
+    except Exception as msg:
+        print(msg)
+        transfer2.undo()
+    print("Expected for account1: 0, Actual:", account1._balance)
+    print("Expected for account2: 500, Actual:", account2._balance)
+    try:
+        transfer2.do()
+    except Exception as msg:
+        print(msg)
+        transfer2.undo()
+    print("Expected for account1: 0, Actual:", account1._balance)
+    print("Expected for account2: 500, Actual:", account2._balance)
+
+    account3 = Account()
+    account4 = Account()
+    transfer3 = BankTransaction(main_bank_account, account3, Currency(500))
+    try:
+        transfer3.do()
+    except Exception as msg:
+        print(msg)
+        transfer3.undo()
+    print("Expected for account3: 500, Actual:", account3._balance)
+    print("Expected for account4: 0, Actual:", account4._balance)
+
+    transfer4 = BankTransaction(account4, account3, Currency(500))
+    try:
+        transfer4.do()
+    except Exception as msg:
+        print(msg)
+        transfer4.undo()
+    print("Expected for account3: 500, Actual:", account3._balance)
+    print("Expected for account4: 0, Actual:", account4._balance)
+
+    #multilple main account test
+    main_bank_account2 = ReserveAccount()
+    main_bank_account2.add_balance(Currency(1000000))
+    transfer5 = BankTransaction(main_bank_account2, account3, Currency(500))
+    try:
+        transfer5.do()
+    except Exception as msg:
+        print(msg)
+        transfer5.undo()
+    print("Expected for account3: 1000, Actual:", account3._balance)
+
+    print(f"main_bank_account balance: {main_bank_account._balance}, main bank account number: {main_bank_account.id()}")
+    print(f"main_bank_account2 balance: {main_bank_account2._balance}, main bank account number: {main_bank_account2.id()}")
+
+    # non-integer currency test
+    transfer6 = BankTransaction(account3, account4, Currency(500))
+
+    # large currency test
+    transfer7 = BankTransaction(main_bank_account, account4, Currency(100000))
+    try:
+        transfer7.do()
+    except Exception as msg:
+        print(msg)
+        transfer7.undo()
+
+    print("Expected for account4: 100000, Actual:", account4._balance)
+    print("Expected for account3: 1000, Actual:", account3._balance)
+
+    # self transfer test
+    transfer8 = BankTransaction(account4, account4, Currency(500))
+    try:
+        transfer8.do()
+    except Exception as msg:
+        print(msg)
+        transfer8.undo()
+    print("Expected for account4: 100000, Actual:", account4._balance)
+
+
+
+    # negative transfer test
+    transfer9 = BankTransaction(account4, account3, Currency(-500))
+    try:
+        transfer9.do()
+    except Exception as msg:
+        print(msg)
+        transfer9.undo()
+    print("Expected for account4: 100000, Actual:", account4._balance)
+    print("Expected for account3: 1000, Actual:", account3._balance)
+
+    #
+    #
+    # main_bank_account = ReserveAccount()
+    # account1 = Account()
+    # account2 = Account()
+    # main_bank_account.add_balance(Currency(100000))
+    # transaction1 = Account()
+    # transaction1.transfer_out(Currency(500), main_bank_account, account1)
+    # transaction1.commit()
+    # print(f"Value of account one is {account1._balance}")
+    #
+    # transaction2 = Account()
+    # transaction2.transfer_in(Currency(250), account1, account2)
+    # transaction2.commit()
+    # print(f"The value of account two is {account2._balance}")
+    #
+    # badTransaction = Account()
+    # badTransaction.transfer_out(100, main_bank_account, account1)
+    # badTransaction.commit()
+    #
+    #
+    # transfer1 = BankTransaction(main_bank_account, account1, Currency(500))
+    # try:
+    #     transfer1.do()
+    # except Exception as msg:
+    #     print(msg)
+    #     transfer1.undo()
+    #
+    # intTest = BankTransaction(account1, account2, 45)
+    # try:
+    #     intTest.do()
+    # except Exception as msg:
+    #     print(msg)
+    #     intTest.undo()
+    #     print(f"Value of account one is {account1._balance}")
+    #     print(f"The value of account two is {account2._balance}")
+    #
+    # print(f"Value of account one is {account1._balance}")
+    # print(f"The value of account two is {account2._balance}")
