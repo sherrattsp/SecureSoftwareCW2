@@ -106,6 +106,8 @@ class Account:
         #if all valid, log transfer out
         #class Account
         if self._is_valid_account(source) and self._is_valid_account(destination) and self._is_valid_currency(currency):
+            if source.id() == destination.id():
+                raise Exception("Cannot transfer to self")
             self._log.append(BankTransaction(source_account=source, destination_account=destination, currency=currency))
         else:
             raise Exception("Attempted to pass int rather than Currency object")
@@ -213,6 +215,7 @@ class BankTransaction(Command):
 
 
 if __name__ == '__main__':
+    #negative balance test
     main_bank_account = ReserveAccount()
     account1 = Account()
     account2 = Account()
@@ -263,6 +266,43 @@ if __name__ == '__main__':
         transfer4.undo()
     print("Expected for account3: 500, Actual:", account3._balance)
     print("Expected for account4: 0, Actual:", account4._balance)
+
+    #multilple main account test
+    main_bank_account2 = ReserveAccount()
+    main_bank_account2.add_balance(Currency(1000000))
+    transfer5 = BankTransaction(main_bank_account2, account3, Currency(500))
+    try:
+        transfer5.do()
+    except Exception as msg:
+        print(msg)
+        transfer5.undo()
+    print("Expected for account3: 1000, Actual:", account3._balance)
+
+    print(f"main_bank_account balance: {main_bank_account._balance}, main bank account number: {main_bank_account.id()}")
+    print(f"main_bank_account2 balance: {main_bank_account2._balance}, main bank account number: {main_bank_account2.id()}")
+
+    # non-integer currency test
+    transfer6 = BankTransaction(account3, account4, Currency(500))
+
+    # large currency test
+    transfer7 = BankTransaction(main_bank_account, account4, Currency(100000))
+    try:
+        transfer7.do()
+    except Exception as msg:
+        print(msg)
+        transfer7.undo()
+
+    print("Expected for account4: 100000, Actual:", account4._balance)
+    print("Expected for account3: 1000, Actual:", account3._balance)
+
+    # self transfer test
+    transfer8 = BankTransaction(account4, account4, Currency(500))
+    try:
+        transfer8.do()
+    except Exception as msg:
+        print(msg)
+        transfer8.undo()
+    print("Expected for account4: 100000, Actual:", account4._balance)
 
     #
     #
